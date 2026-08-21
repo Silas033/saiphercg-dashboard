@@ -1,0 +1,43 @@
+SAIPHER CG SECURED LOCAL DASHBOARD
+==================================
+
+This dashboard stays LOCAL on the trusted client computer.
+Do NOT deploy this dashboard to Vercel or Netlify.
+
+SECURITY
+- The dashboard now requires Supabase email/password login.
+- Use one of the administrator accounts already added through your security SQL.
+- The browser uses the normal Supabase publishable/anon key.
+- Your applied Row Level Security policies are what grant admin writes and block public storefront writes.
+- Never put a Supabase service-role/secret key in this project.
+
+FIRST TIME ON A CLIENT COMPUTER
+1. Install Node.js if it is not installed.
+2. Put this folder somewhere permanent, for example:
+   C:\SaipherDashboard
+3. Keep the provided .env in the project root, or create one containing:
+   VITE_SUPABASE_URL=...
+   VITE_SUPABASE_ANON_KEY=...
+4. Double-click setup-dashboard.bat once.
+5. After setup, double-click start-dashboard.bat.
+6. The dashboard opens at:
+   http://127.0.0.1:4173
+7. Sign in using an approved Supabase Auth administrator email/password.
+
+NORMAL DAILY USE
+- Double-click start-dashboard.bat.
+- You do not need to type npm run dev.
+- Keep the minimized server window running while using the dashboard.
+- The dashboard session is saved locally by Supabase Auth, so it can remain signed in until you Log Out.
+
+AFTER YOU EDIT DASHBOARD SOURCE CODE
+- Double-click rebuild-dashboard.bat.
+- Then use start-dashboard.bat again.
+
+DEVELOPMENT
+- You may still use npm run dev while actively coding.
+- Development normally opens at http://localhost:5173.
+
+IMPORTANT
+- The public storefront is separate and may be deployed online.
+- This dashboard should remain local-only.

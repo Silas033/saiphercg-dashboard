@@ -1,0 +1,40 @@
+/* src/styles/topbar.css */
+.topbar {
+    min-height: 48px;
+    padding: 0 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    background: #2697d7;
+    color: #ffffff;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+
+.topbar-title {
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topbar-session {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0.95;
+}
+
+.topbar-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #d9f99d;
+    box-shadow: 0 0 0 3px rgba(217, 249, 157, 0.2);
+}

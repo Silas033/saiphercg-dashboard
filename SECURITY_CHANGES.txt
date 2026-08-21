@@ -1,0 +1,17 @@
+SECURITY CHANGES IN THIS VERSION
+================================
+
+1. Added Supabase email/password login screen.
+2. Dashboard pages are hidden until a Supabase Auth session exists.
+3. Existing browser session is restored automatically.
+4. Auth changes are monitored with onAuthStateChange.
+5. Existing sidebar Log Out button now signs out the local browser session.
+6. Signed-in administrator email is displayed in the sidebar.
+7. Supabase client keeps sessions locally and auto-refreshes tokens.
+8. No service-role or secret key is used in the frontend.
+9. Existing product, company page, reorder, and transaction files were preserved.
+10. Added one-click local setup/start/rebuild .bat files.
+11. Local normal-use server binds only to 127.0.0.1:4173.
+12. Added .gitignore protection for .env.
+
+The Supabase RLS SQL must already be applied. The SQL—not the login screen—is the final database authorization layer.

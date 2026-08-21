@@ -1,0 +1,85 @@
+/* src/styles/extra.css — imported by global.css */
+
+/* ── Products page ─────────────────────────────────── */
+.fetch-error {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: #fef2f2; color: #dc2626;
+    border: 1px solid #fecaca; border-radius: 10px;
+    padding: 0.75rem 1rem; margin: 1rem 0; font-weight: 500;
+}
+
+.thumb-placeholder {
+    background: #f3f4f6; border-radius: 8px;
+    min-width: 52px; min-height: 52px;
+}
+
+.gallery-no-image {
+    display: flex; align-items: center; justify-content: center;
+    background: #f3f4f6; color: #9ca3af;
+    font-size: 0.9rem; min-height: 200px; border-radius: 12px;
+}
+
+.image-lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3000; cursor: pointer; padding: 1.5rem;
+}
+.image-lightbox-panel {
+    position: relative; cursor: default;
+}
+.image-lightbox-img {
+    max-width: 90vw; max-height: 90vh;
+    object-fit: contain; border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+.image-lightbox-close {
+    position: fixed; top: 1.25rem; right: 1.5rem;
+    background: #b48d16; color: #fff; border: none; border-radius: 50%;
+    width: 40px; height: 40px; font-size: 1rem; font-weight: bold;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4); z-index: 3001;
+}
+.image-lightbox-close:hover { background: #e1e61d; color: #111; }
+
+.delete-confirm-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3000;
+}
+.delete-confirm-panel {
+    background: #fff; border-radius: 16px; padding: 2rem;
+    max-width: 420px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25); text-align: center;
+}
+.delete-confirm-icon { font-size: 2.5rem; color: #dc2626; margin-bottom: 0.75rem; }
+.delete-confirm-title { font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem; }
+.delete-confirm-body { font-size: 0.95rem; color: #6b7280; margin-bottom: 1.5rem; line-height: 1.5; }
+.delete-confirm-actions { display: flex; gap: 0.75rem; justify-content: center; }
+.delete-cancel-btn {
+    padding: 0.6rem 1.5rem; border: 1px solid #d1d5db;
+    background: #fff; border-radius: 8px; cursor: pointer;
+    font-weight: 600; color: #374151; transition: background 0.2s;
+}
+.delete-cancel-btn:hover { background: #f9fafb; }
+.delete-confirm-btn {
+    padding: 0.6rem 1.5rem; background: #dc2626; color: #fff;
+    border: none; border-radius: 8px; cursor: pointer;
+    font-weight: 600; transition: background 0.2s;
+}
+.delete-confirm-btn:hover { background: #b91c1c; }
+.delete-confirm-btn:disabled,
+.delete-cancel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── AddProduct page ───────────────────────────────── */
+.save-error {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: #fef2f2; color: #dc2626;
+    border: 1px solid #fecaca; border-radius: 10px;
+    padding: 0.75rem 1rem; margin: 1rem 0; font-weight: 500;
+}
+.video-ready-note {
+    margin-top: 0.5rem; font-size: 0.85rem;
+    color: #16a34a; font-weight: 500;
+}

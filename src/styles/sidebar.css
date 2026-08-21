@@ -1,0 +1,139 @@
+/*src/styles/sidebar.css*/
+.sidebar{
+    width:180px;
+    background:#262626;
+    display:flex;
+    flex-direction:column;
+}
+
+.sidebar-top{
+    height:20px;
+}
+
+.sidebar-nav{
+    display:flex;
+    flex-direction:column;
+    margin-top:10px;
+}
+
+.nav-group{
+    display:flex;
+    flex-direction:column;
+}
+
+.nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:none;
+    border:none;
+    color:#9e9e9e;
+    text-align:left;
+    padding:15px 20px;
+    cursor:pointer;
+    width:100%;
+}
+
+.nav-item:hover{
+    background:#333;
+    color:white;
+}
+
+.nav-item.active{
+    background:#1d1d1d;
+    color:white;
+}
+
+.nav-label{
+    flex:1;
+}
+
+.nav-caret{
+    font-size:11px;
+    display:flex;
+    align-items:center;
+    transition:transform .18s ease;
+}
+
+.nav-caret.open{
+    transform:rotate(180deg);
+}
+
+.nav-submenu{
+    display:flex;
+    flex-direction:column;
+    max-height:0;
+    overflow:hidden;
+    background:#1a1a1a;
+    transition:max-height .2s ease;
+}
+
+.nav-submenu.open{
+    max-height:200px;
+}
+
+.nav-subitem{
+    background:none;
+    border:none;
+    color:#9e9e9e;
+    text-align:left;
+    padding:12px 20px 12px 50px;
+    cursor:pointer;
+    font-size:14px;
+}
+
+.nav-subitem:hover{
+    background:#333;
+    color:white;
+}
+
+.nav-subitem.active{
+    background:#1d1d1d;
+    color:#fff;
+    font-weight:600;
+}
+
+.logout-button{
+    margin-top:auto;
+    border:none;
+    background:none;
+    color:#9e9e9e;
+    padding:20px;
+    text-align:left;
+    cursor:pointer;
+    border-top:1px solid #444;
+}
+.sidebar-account {
+    margin-top: auto;
+    padding: 15px 14px 12px;
+    border-top: 1px solid #3c3c3c;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.sidebar-account-label {
+    color: #737373;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.sidebar-account-email {
+    color: #d4d4d4;
+    font-size: 11px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logout-button {
+    margin-top: 0;
+}
+
+.logout-button:hover {
+    background: #333;
+    color: #ffffff;
+}
