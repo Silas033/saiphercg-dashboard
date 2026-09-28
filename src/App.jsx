@@ -124,12 +124,19 @@ export default function App() {
                     setPasswordRecovery(true);
                 }
 
-                // Clear previous authorization whenever
-                // authentication state changes.
-                setIsAdmin(false);
-                setCheckedAdminUserId(null);
+              const nextUserId = nextSession?.user?.id ?? null;
 
-                setSession(nextSession ?? null);
+                setSession((prevSession) => {
+                    const prevUserId = prevSession?.user?.id ?? null;
+
+                    if (nextUserId !== prevUserId) {
+                        setIsAdmin(false);
+                        setCheckedAdminUserId(null);
+                    }
+
+                    return nextSession ?? null;
+                });
+
                 setAuthLoading(false);
             }
         );
