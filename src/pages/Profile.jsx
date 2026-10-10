@@ -20,7 +20,39 @@ import "../styles/profile.css";
 
 const MAX_COMPANY_PAGES = 5;
 const COMPANY_BUCKET = "company-media";
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+// Image file types a gallery block can accept (chosen per block in the editor).
+const IMAGE_TYPE_OPTIONS = {
+    jpeg_png: {
+        label: "JPEG & PNG",
+        mimes: ["image/jpeg", "image/png"],
+        names: "JPEG and PNG",
+    },
+    jpeg: {
+        label: "JPEG only",
+        mimes: ["image/jpeg"],
+        names: "JPEG",
+    },
+    png: {
+        label: "PNG only",
+        mimes: ["image/png"],
+        names: "PNG",
+    },
+    all: {
+        label: "All (JPEG, PNG, WebP, GIF)",
+        mimes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+        names: "JPEG, PNG, WebP, and GIF",
+    },
+};
+const DEFAULT_IMAGE_FILE_TYPES = "jpeg_png";
+
+function getImageTypeOption(key) {
+    return IMAGE_TYPE_OPTIONS[key] || IMAGE_TYPE_OPTIONS[DEFAULT_IMAGE_FILE_TYPES];
+}
+
+// Image alignment options (per image).
+const IMAGE_ALIGNMENTS = ["left", "center", "right"];
+const DEFAULT_IMAGE_ALIGN = "center";
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 
 const PRODUCT_SELECT = `
@@ -106,7 +138,12 @@ function createBlock(type) {
     if (type === "gallery") {
         return {
             ...common,
-            content: { images: [], columns: 3 },
+            content: {
+                images: [],
+                columns: 3,
+                fileTypes: DEFAULT_IMAGE_FILE_TYPES,
+                imageSize: 100,
+            },
             productIds: [],
         };
     }
@@ -374,10 +411,14 @@ export default function Profile() {
 
         try {
             const uploaded = [];
+            const currentBlock = (draft.blocks || []).find((item) => item.id === blockId);
+            const typeOption = getImageTypeOption(currentBlock?.content?.fileTypes);
 
             for (const file of files) {
-                if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-                    throw new Error(`${file.name}: only JPG, PNG, WEBP, and GIF are allowed.`);
+                if (!typeOption.mimes.includes(file.type)) {
+                    throw new Error(
+                        `${file.name}: only ${typeOption.names} files are allowed for this block.`
+                    );
                 }
                 if (file.size > MAX_IMAGE_SIZE) {
                     throw new Error(`${file.name}: image must be 8 MB or smaller.`);
@@ -404,6 +445,7 @@ export default function Profile() {
                     url: publicUrlData.publicUrl,
                     alt: file.name.replace(/\.[^.]+$/, ""),
                     caption: "",
+                    align: DEFAULT_IMAGE_ALIGN,
                 });
             }
 
@@ -885,6 +927,22 @@ function BlockEditor({
 
     if (block.block_type === "gallery") {
         const images = block.content?.images || [];
+        const typeOption = getImageTypeOption(block.content?.fileTypes);
+        const setContent = (patch) =>
+            updateBlock(block.id, (current) => ({
+                ...current,
+                content: { ...current.content, ...patch },
+            }));
+        const setImageAlign = (imageId, align) =>
+            updateBlock(block.id, (current) => ({
+                ...current,
+                content: {
+                    ...current.content,
+                    images: current.content.images.map((item) =>
+                        item.id === imageId ? { ...item, align } : item
+                    ),
+                },
+            }));
         return (
             <div className="company-gallery-editor">
                 <div className="company-gallery-editor-toolbar">
@@ -892,7 +950,7 @@ function BlockEditor({
                         <FaImage /> {uploading ? "Uploading…" : "Upload Multiple Images"}
                         <input
                             type="file"
-                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            accept={typeOption.mimes.join(",")}
                             multiple
                             hidden
                             disabled={uploading}
@@ -901,6 +959,59 @@ function BlockEditor({
                                 event.target.value = "";
                             }}
                         />
+                    </label>
+                    <label>
+                        File type
+                        <select
+                            className="company-filetype-select"
+                            value={block.content?.fileTypes || DEFAULT_IMAGE_FILE_TYPES}
+                            onChange={(event) => setContent({ fileTypes: event.target.value })}
+                        >
+                            {Object.entries(IMAGE_TYPE_OPTIONS).map(([key, option]) => (
+                                <option key={key} value={key}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label>
+                        Image size
+                        <select
+                            value={block.content?.imageSize || 100}
+                            onChange={(event) => setContent({ imageSize: Number(event.target.value) })}
+                        >
+                            <option value={40}>Small</option>
+                            <option value={60}>Medium</option>
+                            <option value={80}>Large</option>
+                            <option value={100}>Full</option>
+                        </select>
+                    </label>
+                    <label>
+                        Align all
+                        <select
+                            value=""
+                            onChange={(event) => {
+                                const align = event.target.value;
+                                if (!align) return;
+                                updateBlock(block.id, (current) => ({
+                                    ...current,
+                                    content: {
+                                        ...current.content,
+                                        images: (current.content.images || []).map((item) => ({
+                                            ...item,
+                                            align,
+                                        })),
+                                    },
+                                }));
+                            }}
+                        >
+                            <option value="">—</option>
+                            {IMAGE_ALIGNMENTS.map((value) => (
+                                <option key={value} value={value}>
+                                    {value.charAt(0).toUpperCase() + value.slice(1)}
+                                </option>
+                            ))}
+                        </select>
                     </label>
                     <label>
                         Columns
@@ -963,6 +1074,19 @@ function BlockEditor({
                                         }))
                                     }
                                 />
+                                <label className="company-image-align-label">
+                                    Alignment
+                                    <select
+                                        value={image.align || DEFAULT_IMAGE_ALIGN}
+                                        onChange={(event) => setImageAlign(image.id, event.target.value)}
+                                    >
+                                        {IMAGE_ALIGNMENTS.map((value) => (
+                                            <option key={value} value={value}>
+                                                {value.charAt(0).toUpperCase() + value.slice(1)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
                                 <button
                                     type="button"
                                     onClick={() => removeGalleryImage(block.id, image)}
@@ -1222,6 +1346,7 @@ function CompanyPreview({ page, productMap }) {
                             key={block.id}
                             className="company-preview-gallery"
                             style={{
+                                "--company-img-size": `${Number(block.content?.imageSize || 100)}%`,
                                 gridTemplateColumns: `repeat(${Math.min(
                                     Number(block.content?.columns || 3),
                                     4
@@ -1229,7 +1354,10 @@ function CompanyPreview({ page, productMap }) {
                             }}
                         >
                             {images.map((image) => (
-                                <figure key={image.id}>
+                                <figure
+                                    key={image.id}
+                                    className={`img-align-${image.align || DEFAULT_IMAGE_ALIGN}`}
+                                >
                                     <img src={image.url} alt={image.alt || "Company"} />
                                     {image.caption && <figcaption>{image.caption}</figcaption>}
                                 </figure>

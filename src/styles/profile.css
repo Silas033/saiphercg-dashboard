@@ -477,6 +477,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 13px;
 }
@@ -488,7 +489,7 @@
     font-size: 13px;
 }
 
-.company-gallery-editor-toolbar > label:last-child {
+.company-gallery-editor-toolbar > label:not(.company-upload-button) {
     display: flex;
     align-items: center;
     gap: 7px;
@@ -497,7 +498,24 @@
 }
 
 .company-gallery-editor-toolbar select {
-    width: 70px;
+    width: 80px;
+}
+
+.company-gallery-editor-toolbar select.company-filetype-select {
+    width: 190px;
+}
+
+.company-image-align-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.company-image-align-label select {
+    width: 90px;
 }
 
 .company-gallery-editor-grid {
@@ -706,8 +724,17 @@
     margin: 0;
 }
 
+.company-preview-gallery figure {
+    display: flex;
+    flex-direction: column;
+}
+
+.company-preview-gallery figure.img-align-left { align-items: flex-start; text-align: left; }
+.company-preview-gallery figure.img-align-center { align-items: center; text-align: center; }
+.company-preview-gallery figure.img-align-right { align-items: flex-end; text-align: right; }
+
 .company-preview-gallery img {
-    width: 100%;
+    width: var(--company-img-size, 100%);
     aspect-ratio: 1 / 1;
     object-fit: cover;
     border-radius: 8px;

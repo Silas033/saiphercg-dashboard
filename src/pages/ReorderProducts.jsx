@@ -8,8 +8,12 @@ import {
     FaBoxOpen,
     FaExclamationTriangle,
     FaGripVertical,
+    FaPen,
+    FaPlus,
     FaSave,
     FaSyncAlt,
+    FaTimes,
+    FaTrashAlt,
     FaUndo,
 } from "react-icons/fa";
 import { supabase } from "../lib/supabaseClient";
@@ -30,6 +34,10 @@ function humanizeCategoryKey(key) {
         .replace(/([a-z])([A-Z])/g, "$1 $2")
         .replace(/[-_]+/g, " ")
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function makeCategoryKey(label) {
+    return String(label || "").replace(/[^a-zA-Z0-9]+/g, "");
 }
 
 function shapeProduct(product, fallbackOrder) {
@@ -71,7 +79,20 @@ export default function ReorderProducts() {
     const [toast, setToast] = useState("");
 
     const initialOrderRef = useRef({});
+    const initialCategoryOrderRef = useRef([]);
     const dragIndexRef = useRef(null);
+
+    // Category management
+    const [categoryOrderDirty, setCategoryOrderDirty] = useState(false);
+    const [savingCategories, setSavingCategories] = useState(false);
+    const catDragIndexRef = useRef(null);
+    const [catDraggingKey, setCatDraggingKey] = useState(null);
+    const [catOverIndex, setCatOverIndex] = useState(null);
+    const [modal, setModal] = useState(null); // { type: "add" | "edit" | "delete", category? }
+    const [modalLabel, setModalLabel] = useState("");
+    const [modalMoveTo, setModalMoveTo] = useState("");
+    const [modalBusy, setModalBusy] = useState(false);
+    const [modalError, setModalError] = useState("");
     const [draggingId, setDraggingId] = useState(null);
     const [overIndex, setOverIndex] = useState(null);
     const toastTimerRef = useRef(null);
@@ -121,6 +142,7 @@ export default function ReorderProducts() {
                     key: product.category_key,
                     label: humanizeCategoryKey(product.category_key),
                     sort_order: Number.MAX_SAFE_INTEGER,
+                    virtual: true, // used by products but has no row in `categories` yet
                 });
             }
         });
@@ -146,6 +168,8 @@ export default function ReorderProducts() {
         });
 
         initialOrderRef.current = nextInitialOrders;
+        initialCategoryOrderRef.current = nextCategories.map((category) => category.key);
+        setCategoryOrderDirty(false);
         setCategories(nextCategories);
         setProductsByCategory(nextGroups);
         setDirtyCategories(new Set());
@@ -308,6 +332,341 @@ export default function ReorderProducts() {
         showToast(`${activeCategory?.label || "Category"} order saved.`);
     };
 
+
+    // ── Category management ───────────────────────────────────
+
+    const closeModal = () => {
+        if (modalBusy) return;
+        setModal(null);
+        setModalError("");
+    };
+
+    const openAddCategory = () => {
+        setModalLabel("");
+        setModalMoveTo("");
+        setModalError("");
+        setModal({ type: "add" });
+    };
+
+    const openEditCategory = (category) => {
+        setModalLabel(category.label);
+        setModalMoveTo("");
+        setModalError("");
+        setModal({ type: "edit", category });
+    };
+
+    const openDeleteCategory = (category) => {
+        const firstOther = categories.find((item) => item.key !== category.key);
+        setModalLabel("");
+        setModalMoveTo(firstOther?.key || "");
+        setModalError("");
+        setModal({ type: "delete", category });
+    };
+
+    const labelIsTaken = (label, exceptKey) => {
+        const wanted = label.trim().toLowerCase();
+        const wantedKey = makeCategoryKey(label).toLowerCase();
+        return categories.some(
+            (category) =>
+                category.key !== exceptKey &&
+                (category.label.trim().toLowerCase() === wanted ||
+                    category.key.toLowerCase() === wantedKey)
+        );
+    };
+
+    const submitAddCategory = async () => {
+        const label = modalLabel.trim();
+        const key = makeCategoryKey(label);
+
+        if (!label || !key) {
+            setModalError("Enter a category name (letters or numbers).");
+            return;
+        }
+        if (labelIsTaken(label, null)) {
+            setModalError("A category with this name already exists.");
+            return;
+        }
+
+        setModalBusy(true);
+        setModalError("");
+        const nextOrder =
+            Math.max(
+                -1,
+                ...categories
+                    .filter((category) => !category.virtual)
+                    .map((category) => Number(category.sort_order) || 0)
+            ) + 1;
+
+        const { data, error } = await supabase
+            .from("categories")
+            .insert({ key, label, sort_order: nextOrder })
+            .select("key, label, sort_order")
+            .single();
+
+        setModalBusy(false);
+        if (error || !data) {
+            setModalError(error?.message || "The category could not be added.");
+            return;
+        }
+
+        setCategories((previous) => [...previous, data]);
+        setProductsByCategory((previous) => ({ ...previous, [data.key]: [] }));
+        initialOrderRef.current[data.key] = [];
+        initialCategoryOrderRef.current = [...initialCategoryOrderRef.current, data.key];
+        setSelectedCategoryKey(data.key);
+        setModal(null);
+        showToast(`"${data.label}" category added.`);
+    };
+
+    const submitEditCategory = async () => {
+        const category = modal?.category;
+        const label = modalLabel.trim();
+        if (!category) return;
+
+        if (!label) {
+            setModalError("The category name cannot be empty.");
+            return;
+        }
+        if (labelIsTaken(label, category.key)) {
+            setModalError("Another category already uses this name.");
+            return;
+        }
+        if (label === category.label && !category.virtual) {
+            setModal(null);
+            return;
+        }
+
+        setModalBusy(true);
+        setModalError("");
+
+        // A category that only exists through its products has no row yet, so create it.
+        const index = categories.findIndex((item) => item.key === category.key);
+        const request = category.virtual
+            ? supabase
+                  .from("categories")
+                  .upsert({ key: category.key, label, sort_order: index }, { onConflict: "key" })
+            : supabase.from("categories").update({ label }).eq("key", category.key);
+
+        const { data, error } = await request.select("key, label, sort_order").single();
+
+        setModalBusy(false);
+        if (error || !data) {
+            setModalError(error?.message || "The category could not be updated.");
+            return;
+        }
+
+        setCategories((previous) =>
+            previous.map((item) => (item.key === data.key ? { ...data } : item))
+        );
+        setModal(null);
+        showToast(`Category renamed to "${data.label}".`);
+    };
+
+    const submitDeleteCategory = async () => {
+        const category = modal?.category;
+        if (!category) return;
+
+        const products = productsByCategory[category.key] || [];
+        const target = categories.find((item) => item.key === modalMoveTo);
+
+        if (products.length > 0 && !target) {
+            setModalError("Choose a category to move this category's products into.");
+            return;
+        }
+
+        setModalBusy(true);
+        setModalError("");
+
+        // 1) Move products first, so nothing is ever left without a category.
+        let movedProducts = [];
+        if (products.length > 0) {
+            const targetProducts = productsByCategory[target.key] || [];
+            const base =
+                targetProducts.reduce(
+                    (highest, product) => Math.max(highest, Number(product.sortOrder) || 0),
+                    -1
+                ) + 1;
+
+            const moveResults = await Promise.all(
+                products.map((product, index) =>
+                    supabase
+                        .from("products")
+                        .update({ category_key: target.key, sort_order: base + index })
+                        .eq("id", product.id)
+                        .select("id")
+                        .single()
+                )
+            );
+
+            const failed = moveResults.find((result) => result.error || !result.data);
+            if (failed) {
+                // Put back any products that were already moved.
+                await Promise.all(
+                    moveResults.map((result, index) =>
+                        !result.error && result.data
+                            ? supabase
+                                  .from("products")
+                                  .update({
+                                      category_key: category.key,
+                                      sort_order: products[index].sortOrder,
+                                  })
+                                  .eq("id", products[index].id)
+                            : null
+                    )
+                );
+                setModalBusy(false);
+                setModalError(
+                    failed.error?.message || "The products could not be moved. Nothing was deleted."
+                );
+                return;
+            }
+
+            movedProducts = products.map((product, index) => ({
+                ...product,
+                categoryKey: target.key,
+                sortOrder: base + index,
+            }));
+        }
+
+        // 2) Delete the category row (nothing to delete if it never had one).
+        if (!category.virtual) {
+            const { error } = await supabase.from("categories").delete().eq("key", category.key);
+            if (error) {
+                setModalBusy(false);
+                setModalError(
+                    `${error.message} — products were moved to "${target?.label}"; reload to see the current state.`
+                );
+                return;
+            }
+        }
+
+        // 3) Update local state without discarding unsaved product reorders.
+        setProductsByCategory((previous) => {
+            const next = { ...previous };
+            delete next[category.key];
+            if (target) next[target.key] = [...(previous[target.key] || []), ...movedProducts];
+            return next;
+        });
+        if (target) {
+            initialOrderRef.current[target.key] = [
+                ...(initialOrderRef.current[target.key] || []),
+                ...movedProducts.map((product) => product.id),
+            ];
+        }
+        delete initialOrderRef.current[category.key];
+        initialCategoryOrderRef.current = initialCategoryOrderRef.current.filter(
+            (key) => key !== category.key
+        );
+        setDirtyCategories((previous) => {
+            const next = new Set(previous);
+            next.delete(category.key);
+            return next;
+        });
+        const remaining = categories.filter((item) => item.key !== category.key);
+        setCategories(remaining);
+        setSelectedCategoryKey((current) =>
+            current === category.key ? target?.key || remaining[0]?.key || "" : current
+        );
+        setModalBusy(false);
+        setModal(null);
+        showToast(
+            movedProducts.length > 0
+                ? `"${category.label}" deleted. ${movedProducts.length} product${movedProducts.length === 1 ? "" : "s"} moved to "${target.label}".`
+                : `"${category.label}" deleted.`
+        );
+    };
+
+    const moveCategory = (fromIndex, toIndex) => {
+        if (
+            fromIndex === toIndex ||
+            fromIndex < 0 ||
+            toIndex < 0 ||
+            fromIndex >= categories.length ||
+            toIndex >= categories.length
+        ) {
+            return;
+        }
+        const next = [...categories];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        setCategories(next);
+        setCategoryOrderDirty(
+            next.map((category) => category.key).join("|") !==
+                initialCategoryOrderRef.current.join("|")
+        );
+        setSaveError("");
+    };
+
+    const resetCategoryDrag = () => {
+        catDragIndexRef.current = null;
+        setCatDraggingKey(null);
+        setCatOverIndex(null);
+    };
+
+    const handleCategoryDragStart = (event, index, key) => {
+        catDragIndexRef.current = index;
+        setCatDraggingKey(key);
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", key);
+    };
+
+    const handleCategoryDrop = (event, dropIndex) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const fromIndex = catDragIndexRef.current;
+        if (fromIndex !== null) moveCategory(fromIndex, dropIndex);
+        resetCategoryDrag();
+    };
+
+    const resetCategoryOrder = () => {
+        const byKey = new Map(categories.map((category) => [category.key, category]));
+        setCategories(initialCategoryOrderRef.current.map((key) => byKey.get(key)).filter(Boolean));
+        setCategoryOrderDirty(false);
+        setSaveError("");
+    };
+
+    const saveCategoryOrder = async () => {
+        if (!categoryOrderDirty || savingCategories) return;
+        setSavingCategories(true);
+        setSaveError("");
+
+        // One statement, so the whole order is saved or none of it is.
+        const rows = categories.map((category, index) => ({
+            key: category.key,
+            label: category.label,
+            sort_order: index,
+        }));
+        const { data, error } = await supabase
+            .from("categories")
+            .upsert(rows, { onConflict: "key" })
+            .select("key");
+
+        if (error || !data || data.length !== rows.length) {
+            setSaveError(
+                error?.message ||
+                    "The category order could not be saved. Check the categories table INSERT/UPDATE policy."
+            );
+            setSavingCategories(false);
+            return;
+        }
+
+        setCategories((previous) =>
+            previous.map((category, index) => ({ ...category, sort_order: index, virtual: false }))
+        );
+        initialCategoryOrderRef.current = categories.map((category) => category.key);
+        setCategoryOrderDirty(false);
+        setSavingCategories(false);
+        showToast("Category order saved.");
+    };
+
+    const modalCategory = modal?.category;
+    const modalProductCount = modalCategory
+        ? productsByCategory[modalCategory.key]?.length || 0
+        : 0;
+    const otherCategories = modalCategory
+        ? categories.filter((category) => category.key !== modalCategory.key)
+        : [];
+
     return (
         <div className="reorder-page-wrapper">
             <div className="reorder-page">
@@ -368,13 +727,27 @@ export default function ReorderProducts() {
                 ) : categories.length === 0 ? (
                     <div className="reorder-state-card">
                         <FaBoxOpen /> No categories are available yet.
+                        <button type="button" className="retry-btn" onClick={openAddCategory}>
+                            <FaPlus /> Add category
+                        </button>
                     </div>
                 ) : (
                     <div className="reorder-workspace">
                         <aside className="reorder-category-panel">
                             <div className="category-panel-heading">
                                 <span>Categories</span>
-                                <span>{categories.length}</span>
+                                <span className="category-heading-tools">
+                                    <span className="category-total">{categories.length}</span>
+                                    <button
+                                        type="button"
+                                        className="category-add-btn"
+                                        onClick={openAddCategory}
+                                        title="Add category"
+                                        aria-label="Add category"
+                                    >
+                                        <FaPlus /> Add
+                                    </button>
+                                </span>
                             </div>
 
                             <label className="mobile-category-select">
@@ -396,33 +769,104 @@ export default function ReorderProducts() {
                             </label>
 
                             <div className="desktop-category-list">
-                                {categories.map((category) => {
+                                {categories.map((category, index) => {
                                     const isActive = category.key === selectedCategoryKey;
                                     const isDirty = dirtyCategories.has(category.key);
                                     const count = productsByCategory[category.key]?.length || 0;
                                     return (
-                                        <button
+                                        <div
                                             key={category.key}
-                                            type="button"
-                                            className={`category-option${isActive ? " active" : ""}`}
-                                            onClick={() => {
-                                                resetDragState();
-                                                setSelectedCategoryKey(category.key);
-                                                setSaveError("");
+                                            className={
+                                                `category-option${isActive ? " active" : ""}` +
+                                                `${catDraggingKey === category.key ? " dragging" : ""}` +
+                                                `${catOverIndex === index && catDraggingKey && catDraggingKey !== category.key ? " drag-over" : ""}`
+                                            }
+                                            draggable={!savingCategories}
+                                            onDragStart={(event) =>
+                                                handleCategoryDragStart(event, index, category.key)
+                                            }
+                                            onDragEnter={() => {
+                                                if (catDragIndexRef.current !== null) setCatOverIndex(index);
                                             }}
+                                            onDragOver={(event) => {
+                                                if (catDragIndexRef.current === null) return;
+                                                event.preventDefault();
+                                                event.dataTransfer.dropEffect = "move";
+                                            }}
+                                            onDrop={(event) => {
+                                                if (catDragIndexRef.current === null) return;
+                                                handleCategoryDrop(event, index);
+                                            }}
+                                            onDragEnd={resetCategoryDrag}
                                         >
-                                            <span className="category-option-copy">
-                                                <span className="category-option-label">
-                                                    {category.label}
-                                                    {isDirty && <span className="unsaved-dot" title="Unsaved changes" />}
-                                                </span>
-                                                <span className="category-option-key">{category.key}</span>
+                                            <span className="category-drag-handle" aria-hidden="true">
+                                                <FaGripVertical />
                                             </span>
-                                            <span className="category-count">{count}</span>
-                                        </button>
+                                            <button
+                                                type="button"
+                                                className="category-option-main"
+                                                onClick={() => {
+                                                    resetDragState();
+                                                    setSelectedCategoryKey(category.key);
+                                                    setSaveError("");
+                                                }}
+                                            >
+                                                <span className="category-option-copy">
+                                                    <span className="category-option-label">
+                                                        {category.label}
+                                                        {isDirty && <span className="unsaved-dot" title="Unsaved changes" />}
+                                                    </span>
+                                                    <span className="category-option-key">{category.key}</span>
+                                                </span>
+                                                <span className="category-count">{count}</span>
+                                            </button>
+                                            <span className="category-row-actions">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditCategory(category)}
+                                                    title="Edit category"
+                                                    aria-label={`Edit ${category.label}`}
+                                                >
+                                                    <FaPen />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="danger"
+                                                    onClick={() => openDeleteCategory(category)}
+                                                    title="Delete category"
+                                                    aria-label={`Delete ${category.label}`}
+                                                >
+                                                    <FaTrashAlt />
+                                                </button>
+                                            </span>
+                                        </div>
                                     );
                                 })}
                             </div>
+
+                            {categoryOrderDirty && (
+                                <div className="category-order-bar">
+                                    <span>Category order changed</span>
+                                    <div>
+                                        <button
+                                            type="button"
+                                            className="category-order-discard"
+                                            onClick={resetCategoryOrder}
+                                            disabled={savingCategories}
+                                        >
+                                            Discard
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="category-order-save"
+                                            onClick={saveCategoryOrder}
+                                            disabled={savingCategories}
+                                        >
+                                            {savingCategories ? "Saving…" : "Save order"}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </aside>
 
                         <section className="reorder-list-panel">
@@ -435,8 +879,25 @@ export default function ReorderProducts() {
                                         {activeIsDirty && <span className="unsaved-label">Unsaved changes</span>}
                                     </p>
                                 </div>
-                                <div className="drag-help">
-                                    <FaGripVertical /> Drag rows or use the arrow buttons
+                                <div className="reorder-heading-side">
+                                    <div className="mobile-category-actions">
+                                        <button type="button" onClick={openAddCategory}>
+                                            <FaPlus /> Add
+                                        </button>
+                                        <button type="button" onClick={() => activeCategory && openEditCategory(activeCategory)}>
+                                            <FaPen /> Edit
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="danger"
+                                            onClick={() => activeCategory && openDeleteCategory(activeCategory)}
+                                        >
+                                            <FaTrashAlt /> Delete
+                                        </button>
+                                    </div>
+                                    <div className="drag-help">
+                                        <FaGripVertical /> Drag rows or use the arrow buttons
+                                    </div>
                                 </div>
                             </div>
 
@@ -523,6 +984,131 @@ export default function ReorderProducts() {
                     </div>
                 )}
             </div>
+
+            {modal && (
+                <div className="category-modal-backdrop" onMouseDown={closeModal}>
+                    <div
+                        className="category-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <div className="category-modal-header">
+                            <h3>
+                                {modal.type === "add" && "Add category"}
+                                {modal.type === "edit" && "Edit category"}
+                                {modal.type === "delete" && "Delete category"}
+                            </h3>
+                            <button type="button" onClick={closeModal} aria-label="Close" disabled={modalBusy}>
+                                <FaTimes />
+                            </button>
+                        </div>
+
+                        {modal.type !== "delete" ? (
+                            <div className="category-modal-body">
+                                <label>
+                                    Category name
+                                    <input
+                                        type="text"
+                                        value={modalLabel}
+                                        autoFocus
+                                        maxLength={60}
+                                        placeholder="e.g. Shrink Wrap Film"
+                                        onChange={(event) => setModalLabel(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                if (modal.type === "add") submitAddCategory();
+                                                else submitEditCategory();
+                                            }
+                                        }}
+                                    />
+                                </label>
+                                <p className="category-modal-hint">
+                                    {modal.type === "add" ? (
+                                        <>
+                                            Internal key: <code>{makeCategoryKey(modalLabel) || "—"}</code>. It is
+                                            generated from the name and cannot be changed later.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Internal key <code>{modalCategory?.key}</code> stays the same, so
+                                            products and storefront links keep working.
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="category-modal-body">
+                                <p>
+                                    Delete <strong>{modalCategory?.label}</strong>? This cannot be undone.
+                                </p>
+                                {modalProductCount > 0 ? (
+                                    otherCategories.length > 0 ? (
+                                        <label>
+                                            This category has {modalProductCount} product
+                                            {modalProductCount === 1 ? "" : "s"}. Move them to:
+                                            <select
+                                                value={modalMoveTo}
+                                                onChange={(event) => setModalMoveTo(event.target.value)}
+                                            >
+                                                {otherCategories.map((category) => (
+                                                    <option key={category.key} value={category.key}>
+                                                        {category.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    ) : (
+                                        <p className="category-modal-hint">
+                                            This is the only category and it still has products. Add another
+                                            category first so the products have somewhere to go.
+                                        </p>
+                                    )
+                                ) : (
+                                    <p className="category-modal-hint">This category has no products.</p>
+                                )}
+                            </div>
+                        )}
+
+                        {modalError && (
+                            <div className="category-modal-error">
+                                <FaExclamationTriangle /> <span>{modalError}</span>
+                            </div>
+                        )}
+
+                        <div className="category-modal-footer">
+                            <button type="button" className="reorder-btn secondary" onClick={closeModal} disabled={modalBusy}>
+                                Cancel
+                            </button>
+                            {modal.type === "add" && (
+                                <button type="button" className="reorder-btn primary" onClick={submitAddCategory} disabled={modalBusy}>
+                                    {modalBusy ? "Adding…" : "Add category"}
+                                </button>
+                            )}
+                            {modal.type === "edit" && (
+                                <button type="button" className="reorder-btn primary" onClick={submitEditCategory} disabled={modalBusy}>
+                                    {modalBusy ? "Saving…" : "Save changes"}
+                                </button>
+                            )}
+                            {modal.type === "delete" && (
+                                <button
+                                    type="button"
+                                    className="reorder-btn danger"
+                                    onClick={submitDeleteCategory}
+                                    disabled={modalBusy || (modalProductCount > 0 && otherCategories.length === 0)}
+                                >
+                                    {modalBusy
+                                        ? "Deleting…"
+                                        : modalProductCount > 0
+                                          ? "Move products & delete"
+                                          : "Delete category"}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

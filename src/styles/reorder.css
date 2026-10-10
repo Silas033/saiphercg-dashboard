@@ -631,3 +631,325 @@
         height:32px;
     }
 }
+
+
+/* ───────── Category management (add / edit / delete / reorder) ───────── */
+
+.category-heading-tools{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+}
+
+.category-panel-heading .category-total{
+    min-width:26px;
+    height:24px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#e2e8f0;
+    color:#334155;
+    font-size:11px;
+}
+
+.category-add-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    height:26px;
+    padding:0 10px;
+    border:1px solid #c4b5fd;
+    border-radius:999px;
+    background:#f5f3ff;
+    color:#6d28d9;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.02em;
+    text-transform:none;
+    cursor:pointer;
+}
+
+.category-add-btn:hover{
+    background:#ede9fe;
+}
+
+/* category rows are now a container with a main button + actions */
+.category-option{
+    gap:6px;
+    padding:4px 6px 4px 4px;
+    cursor:grab;
+}
+
+.category-option.dragging{
+    opacity:.45;
+}
+
+.category-option.drag-over{
+    border-color:#7c3aed;
+    box-shadow:0 0 0 3px rgba(124,58,237,.12);
+}
+
+.category-drag-handle{
+    flex:0 0 18px;
+    display:inline-flex;
+    justify-content:center;
+    color:#cbd5e1;
+    font-size:12px;
+}
+
+.category-option:hover .category-drag-handle{
+    color:#94a3b8;
+}
+
+.category-option-main{
+    flex:1;
+    min-width:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:8px 4px;
+    border:0;
+    background:transparent;
+    text-align:left;
+    cursor:pointer;
+}
+
+.category-row-actions{
+    display:flex;
+    gap:4px;
+    opacity:0;
+    transition:opacity .15s ease;
+}
+
+.category-option:hover .category-row-actions,
+.category-option:focus-within .category-row-actions,
+.category-option.active .category-row-actions{
+    opacity:1;
+}
+
+.category-row-actions button,
+.mobile-category-actions button{
+    width:26px;
+    height:26px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid #e2e8f0;
+    border-radius:8px;
+    background:#fff;
+    color:#64748b;
+    font-size:11px;
+    cursor:pointer;
+}
+
+.category-row-actions button:hover{
+    background:#f1f5f9;
+    color:#0f172a;
+}
+
+.category-row-actions button.danger:hover,
+.mobile-category-actions button.danger{
+    border-color:#fecaca;
+    background:#fef2f2;
+    color:#dc2626;
+}
+
+.category-order-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-top:12px;
+    padding:10px 12px;
+    border:1px solid #fde68a;
+    border-radius:12px;
+    background:#fffbeb;
+    color:#b45309;
+    font-size:12px;
+    font-weight:700;
+}
+
+.category-order-bar > div{
+    display:flex;
+    gap:6px;
+}
+
+.category-order-bar button{
+    padding:6px 10px;
+    border-radius:8px;
+    border:1px solid #e2e8f0;
+    background:#fff;
+    color:#334155;
+    font-size:11px;
+    font-weight:800;
+    cursor:pointer;
+}
+
+.category-order-bar button.category-order-save{
+    border-color:#7c3aed;
+    background:#7c3aed;
+    color:#fff;
+}
+
+.category-order-bar button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+}
+
+.reorder-heading-side{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+}
+
+.mobile-category-actions{
+    display:none;
+    gap:6px;
+}
+
+.mobile-category-actions button{
+    width:auto;
+    gap:6px;
+    padding:0 10px;
+    font-weight:700;
+}
+
+.reorder-btn.danger{
+    background:#dc2626;
+    color:#fff;
+}
+
+.reorder-btn.danger:not(:disabled):hover{
+    box-shadow:0 10px 22px rgba(220,38,38,.22);
+}
+
+/* modal */
+.category-modal-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:2000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    background:rgba(15,23,42,.45);
+}
+
+.category-modal{
+    width:100%;
+    max-width:430px;
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 24px 60px rgba(15,23,42,.25);
+    overflow:hidden;
+}
+
+.category-modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:16px 18px;
+    border-bottom:1px solid #eef2f7;
+}
+
+.category-modal-header h3{
+    font-size:17px;
+    color:#0f172a;
+}
+
+.category-modal-header button{
+    width:30px;
+    height:30px;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:#64748b;
+    cursor:pointer;
+}
+
+.category-modal-header button:hover{
+    background:#f1f5f9;
+}
+
+.category-modal-body{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:18px;
+    color:#334155;
+    font-size:14px;
+    line-height:1.5;
+}
+
+.category-modal-body label{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-weight:700;
+}
+
+.category-modal-body input,
+.category-modal-body select{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    font-size:14px;
+}
+
+.category-modal-body input:focus,
+.category-modal-body select:focus{
+    outline:none;
+    border-color:#7c3aed;
+    box-shadow:0 0 0 3px rgba(124,58,237,.14);
+}
+
+.category-modal-hint{
+    color:#64748b;
+    font-size:12px;
+}
+
+.category-modal-hint code{
+    padding:1px 5px;
+    border-radius:5px;
+    background:#f1f5f9;
+    color:#334155;
+}
+
+.category-modal-error{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    margin:0 18px 6px;
+    padding:10px 12px;
+    border:1px solid #fecaca;
+    border-radius:10px;
+    background:#fef2f2;
+    color:#b91c1c;
+    font-size:12px;
+    font-weight:650;
+}
+
+.category-modal-footer{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    padding:14px 18px 18px;
+}
+
+@media (max-width:760px){
+    .mobile-category-actions{
+        display:flex;
+    }
+
+    .reorder-heading-side{
+        align-items:flex-start;
+    }
+
+    .category-panel-heading{
+        padding-bottom:10px;
+    }
+}
